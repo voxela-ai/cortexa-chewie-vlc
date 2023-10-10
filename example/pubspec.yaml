@@ -4,14 +4,15 @@ version: 1.0.0
 publish_to: none
 
 environment:
-  sdk: '>=2.18.0 <4.0.0'
+  sdk: ">=2.18.0 <4.0.0"
   flutter: ">=3.10.0"
 
 dependencies:
-  chewie:
+  chewie_vlc:
     path: ../
   flutter:
     sdk: flutter
+  wakelock_plus: ^1.1.0
 
 dev_dependencies:
   flutter_test:

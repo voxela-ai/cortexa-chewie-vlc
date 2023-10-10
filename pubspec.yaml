@@ -1,10 +1,10 @@
-name: chewie
-description: A video player for Flutter with Cupertino and Material play controls
+name: chewie_vlc
+description: A vlc player for Flutter with Cupertino and Material play controls
 version: 1.7.1
-homepage: https://github.com/fluttercommunity/chewie
+homepage: https://github.com/voxela-ai/cortexa-chewie-vlc
 
 environment:
-  sdk: '>=2.18.0 <4.0.0'
+  sdk: ">=2.18.0 <4.0.0"
   flutter: ">=3.3.0"
 
 dependencies:
@@ -12,8 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   provider: ^6.0.5
-  video_player: ^2.7.0
-  wakelock_plus: ^1.1.0
+  flutter_vlc_player: ^7.4.0
 
 dev_dependencies:
   flutter_test:

@@ -1,10 +1,10 @@
-import 'dart:io';
-
-import 'package:chewie/chewie.dart';
-import 'package:chewie_example/app/theme.dart';
+import 'package:chewie_vlc/chewie_vlc.dart';
+import 'package:chewie_example/app/full_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // ignore: depend_on_referenced_packages
-import 'package:video_player/video_player.dart';
+import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class ChewieDemo extends StatefulWidget {
   const ChewieDemo({
@@ -21,364 +21,403 @@ class ChewieDemo extends StatefulWidget {
 }
 
 class _ChewieDemoState extends State<ChewieDemo> {
-  TargetPlatform? _platform;
-  late VideoPlayerController _videoPlayerController1;
-  late VideoPlayerController _videoPlayerController2;
-  ChewieController? _chewieController;
-  int? bufferDelay;
+  late VlcPlayerController _videoPlayerController;
+  late ChewieController _chewieController;
+  int time = 0;
+
+  setTime(int time) {
+    setState(() {
+      this.time = time;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     initializePlayer();
+    _createChewieController();
   }
 
   @override
   void dispose() {
-    _videoPlayerController1.dispose();
-    _videoPlayerController2.dispose();
-    _chewieController?.dispose();
+    _videoPlayerController.dispose();
+    _chewieController.dispose();
     super.dispose();
   }
 
-  List<String> srcs = [
-    "https://assets.mixkit.co/videos/preview/mixkit-spinning-around-the-earth-29351-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-daytime-city-traffic-aerial-view-56-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-a-girl-blowing-a-bubble-gum-at-an-amusement-park-1226-large.mp4"
-  ];
-
   Future<void> initializePlayer() async {
-    _videoPlayerController1 =
-        VideoPlayerController.networkUrl(Uri.parse(srcs[currPlayIndex]));
-    _videoPlayerController2 =
-        VideoPlayerController.networkUrl(Uri.parse(srcs[currPlayIndex]));
-    await Future.wait([
-      _videoPlayerController1.initialize(),
-      _videoPlayerController2.initialize()
-    ]);
-    _createChewieController();
-    setState(() {});
+    _videoPlayerController = VlcPlayerController.network(
+        "https://www.shutterstock.com/shutterstock/videos/1104530479/preview/stock-footage-countdown-video-from-minute-to-minute-timer-countdown-second-countdown-part-of.webm",
+        hwAcc: HwAcc.full,
+        options: VlcPlayerOptions(
+            advanced:
+                VlcAdvancedOptions([VlcAdvancedOptions.networkCaching(2000)])))
+      ..addOnInitListener(vlcInitListener)
+      ..addListener(vlcListener);
+  }
+
+  void vlcListener() {
+    if (!mounted) return;
+    if (_videoPlayerController.value.isEnded) {
+      _videoPlayerController.stop();
+      _videoPlayerController.play();
+    }
+  }
+
+  void vlcInitListener() {
+    _videoPlayerController.startRendererScanning();
   }
 
   void _createChewieController() {
-    // final subtitles = [
-    //     Subtitle(
-    //       index: 0,
-    //       start: Duration.zero,
-    //       end: const Duration(seconds: 10),
-    //       text: 'Hello from subtitles',
-    //     ),
-    //     Subtitle(
-    //       index: 0,
-    //       start: const Duration(seconds: 10),
-    //       end: const Duration(seconds: 20),
-    //       text: 'Whats up? :)',
-    //     ),
-    //   ];
-
-    final subtitles = [
-      Subtitle(
-        index: 0,
-        start: Duration.zero,
-        end: const Duration(seconds: 10),
-        text: const TextSpan(
-          children: [
-            TextSpan(
-              text: 'Hello',
-              style: TextStyle(color: Colors.red, fontSize: 22),
-            ),
-            TextSpan(
-              text: ' from ',
-              style: TextStyle(color: Colors.green, fontSize: 20),
-            ),
-            TextSpan(
-              text: 'subtitles',
-              style: TextStyle(color: Colors.blue, fontSize: 18),
-            )
-          ],
-        ),
-      ),
-      Subtitle(
-        index: 0,
-        start: const Duration(seconds: 10),
-        end: const Duration(seconds: 20),
-        text: 'Whats up? :)',
-        // text: const TextSpan(
-        //   text: 'Whats up? :)',
-        //   style: TextStyle(color: Colors.amber, fontSize: 22, fontStyle: FontStyle.italic),
-        // ),
-      ),
-    ];
-
     _chewieController = ChewieController(
-      videoPlayerController: _videoPlayerController1,
-      autoPlay: true,
-      looping: true,
-      progressIndicatorDelay:
-          bufferDelay != null ? Duration(milliseconds: bufferDelay!) : null,
-
-      additionalOptions: (context) {
-        return <OptionItem>[
-          OptionItem(
-            onTap: toggleVideo,
-            iconData: Icons.live_tv_sharp,
-            title: 'Toggle Video Src',
-          ),
-        ];
-      },
-      subtitle: Subtitles(subtitles),
-      subtitleBuilder: (context, dynamic subtitle) => Container(
-        padding: const EdgeInsets.all(10.0),
-        child: subtitle is InlineSpan
-            ? RichText(
-                text: subtitle,
-              )
-            : Text(
-                subtitle.toString(),
-                style: const TextStyle(color: Colors.black),
-              ),
+      videoPlayerController: _videoPlayerController,
+      hideControlsTimer: const Duration(seconds: 5),
+      placeholder: Container(
+        color: Colors.black,
       ),
-
-      hideControlsTimer: const Duration(seconds: 1),
-
-      // Try playing around with some of these other options:
-
-      // showControls: false,
-      // materialProgressColors: ChewieProgressColors(
-      //   playedColor: Colors.red,
-      //   handleColor: Colors.blue,
-      //   backgroundColor: Colors.grey,
-      //   bufferedColor: Colors.lightGreen,
-      // ),
-      // placeholder: Container(
-      //   color: Colors.grey,
-      // ),
-      // autoInitialize: true,
     );
+    _chewieController.addListener(() async {
+      if (_chewieController.isFullScreen) {
+        await _chewieController.pause();
+        time = await _videoPlayerController.getTime();
+        String url =
+            "https://www.shutterstock.com/shutterstock/videos/1104530479/preview/stock-footage-countdown-video-from-minute-to-minute-timer-countdown-second-countdown-part-of.webm";
+        onEnterFullScreen();
+        WakelockPlus.enable();
+        await Navigator.of(context).push(MaterialPageRoute(builder: ((context) {
+          return ChewieDemoFullScreen(url: url, time: time, setTime: setTime);
+        })));
+        await _chewieController.play();
+        await _videoPlayerController.setTime(time);
+        WakelockPlus.disable();
+        SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.manual,
+          overlays: SystemUiOverlay.values,
+        );
+        SystemChrome.setPreferredOrientations(
+            [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+      }
+    });
   }
 
-  int currPlayIndex = 0;
+  void onEnterFullScreen() {
+    final videoWidth = _chewieController.videoPlayerController.value.size.width;
+    final videoHeight =
+        _chewieController.videoPlayerController.value.size.height;
 
-  Future<void> toggleVideo() async {
-    await _videoPlayerController1.pause();
-    currPlayIndex += 1;
-    if (currPlayIndex >= srcs.length) {
-      currPlayIndex = 0;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
+
+    final isLandscapeVideo = videoWidth > videoHeight;
+    final isPortraitVideo = videoWidth < videoHeight;
+
+    /// Default behavior
+    /// Video w > h means we force landscape
+    if (isLandscapeVideo) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
     }
-    await initializePlayer();
+
+    /// Video h > w means we force portrait
+    else if (isPortraitVideo) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+    }
+
+    /// Otherwise if h == w (square video)
+    else {
+      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: widget.title,
-      theme: AppTheme.light.copyWith(
-        platform: _platform ?? Theme.of(context).platform,
-      ),
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-        ),
-        body: Column(
-          children: <Widget>[
-            Expanded(
-              child: Center(
-                child: _chewieController != null &&
-                        _chewieController!
-                            .videoPlayerController.value.isInitialized
-                    ? Chewie(
-                        controller: _chewieController!,
-                      )
-                    : const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 20),
-                          Text('Loading'),
-                        ],
-                      ),
+      home: SafeArea(
+        child: Scaffold(
+          body: Column(
+            children: <Widget>[
+              Expanded(
+                child: Center(
+                  child: Chewie(
+                    controller: _chewieController,
+                  ),
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                _chewieController?.enterFullScreen();
-              },
-              child: const Text('Fullscreen'),
-            ),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _videoPlayerController1.pause();
-                        _videoPlayerController1.seekTo(Duration.zero);
-                        _createChewieController();
-                      });
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: Text("Landscape Video"),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _videoPlayerController2.pause();
-                        _videoPlayerController2.seekTo(Duration.zero);
-                        _chewieController = _chewieController!.copyWith(
-                          videoPlayerController: _videoPlayerController2,
-                          autoPlay: true,
-                          looping: true,
-                          /* subtitle: Subtitles([
-                            Subtitle(
-                              index: 0,
-                              start: Duration.zero,
-                              end: const Duration(seconds: 10),
-                              text: 'Hello from subtitles',
-                            ),
-                            Subtitle(
-                              index: 0,
-                              start: const Duration(seconds: 10),
-                              end: const Duration(seconds: 20),
-                              text: 'Whats up? :)',
-                            ),
-                          ]),
-                          subtitleBuilder: (context, subtitle) => Container(
-                            padding: const EdgeInsets.all(10.0),
-                            child: Text(
-                              subtitle,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ), */
-                        );
-                      });
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: Text("Portrait Video"),
-                    ),
-                  ),
-                )
-              ],
-            ),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _platform = TargetPlatform.android;
-                      });
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: Text("Android controls"),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _platform = TargetPlatform.iOS;
-                      });
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: Text("iOS controls"),
-                    ),
-                  ),
-                )
-              ],
-            ),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _platform = TargetPlatform.windows;
-                      });
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: Text("Desktop controls"),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (Platform.isAndroid)
-              ListTile(
-                title: const Text("Delay"),
-                subtitle: DelaySlider(
-                  delay:
-                      _chewieController?.progressIndicatorDelay?.inMilliseconds,
-                  onSave: (delay) async {
-                    if (delay != null) {
-                      bufferDelay = delay == 0 ? null : delay;
-                      await initializePlayer();
-                    }
-                  },
-                ),
-              )
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class DelaySlider extends StatefulWidget {
-  const DelaySlider({Key? key, required this.delay, required this.onSave})
-      : super(key: key);
 
-  final int? delay;
-  final void Function(int?) onSave;
+/*
+
+// below code contains chewie player testing and the vlc player is working fine in both portrait moda and landscape mode while landscape mode is used after pushing to landscape mode.
+
+import 'package:chewie/chewie.dart';
+import 'package:flutter/material.dart';
+// ignore: depend_on_referenced_packages
+import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+
+class ChewieDemo extends StatefulWidget {
+  const ChewieDemo({
+    Key? key,
+    this.title = 'Chewie Demo',
+  }) : super(key: key);
+
+  final String title;
+
   @override
-  State<DelaySlider> createState() => _DelaySliderState();
+  State<StatefulWidget> createState() {
+    return _ChewieDemoState();
+  }
 }
 
-class _DelaySliderState extends State<DelaySlider> {
-  int? delay;
-  bool saved = false;
+class _ChewieDemoState extends State<ChewieDemo> {
+  late VlcPlayerController _videoPlayerController;
+  late ChewieController _chewieController;
 
   @override
   void initState() {
     super.initState();
-    delay = widget.delay;
+    initializePlayer();
+    _createChewieController();
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController.dispose();
+    _chewieController.dispose();
+    super.dispose();
+  }
+
+  Future<void> initializePlayer() async {
+    _videoPlayerController = VlcPlayerController.network(
+        "https://www.shutterstock.com/shutterstock/videos/1104530479/preview/stock-footage-countdown-video-from-minute-to-minute-timer-countdown-second-countdown-part-of.webm",
+        hwAcc: HwAcc.full,
+        options: VlcPlayerOptions(
+            advanced:
+                VlcAdvancedOptions([VlcAdvancedOptions.networkCaching(2000)])))
+      ..addOnInitListener(vlcInitListener)
+      ..addListener(vlcListener);
+  }
+
+  void vlcListener() {
+    if (!mounted) return;
+    if (_videoPlayerController.value.isEnded) {
+      _videoPlayerController.stop();
+      _videoPlayerController.play();
+    }
+  }
+
+  void vlcInitListener() {
+    _videoPlayerController.startRendererScanning();
+  }
+
+  void _createChewieController() {
+    _chewieController = ChewieController(
+      videoPlayerController: _videoPlayerController,
+      looping: true,
+      hideControlsTimer: const Duration(seconds: 5),
+      placeholder: Container(
+        color: Colors.black,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    const int max = 1000;
-    return ListTile(
-      title: Text(
-        "Progress indicator delay ${delay != null ? "${delay.toString()} MS" : ""}",
-      ),
-      subtitle: Slider(
-        value: delay != null ? (delay! / max) : 0,
-        onChanged: (value) async {
-          delay = (value * max).toInt();
-          setState(() {
-            saved = false;
-          });
-        },
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.save),
-        onPressed: saved
-            ? null
-            : () {
-                widget.onSave(delay);
-                setState(() {
-                  saved = true;
-                });
-              },
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: widget.title,
+      home: SafeArea(
+        child: Scaffold(
+          body: Column(
+            children: <Widget>[
+              Expanded(
+                child: Center(
+                  child: Chewie(
+                    controller: _chewieController,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
+
+*/
+
+
+// below code is just using vlc player in a small app using without chewie, it is also working fine in both portrait and landscape mode.
+
+/*
+import 'package:chewie/chewie.dart';
+import 'package:chewie_example/app/full_screen.dart';
+import 'package:flutter/material.dart';
+import 'dart:developer';
+// ignore: depend_on_referenced_packages
+import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+
+class ChewieDemo extends StatefulWidget {
+  const ChewieDemo({
+    Key? key,
+    this.title = 'Chewie Demo',
+  }) : super(key: key);
+
+  final String title;
+
+  @override
+  State<StatefulWidget> createState() {
+    return _ChewieDemoState();
+  }
+}
+
+class _ChewieDemoState extends State<ChewieDemo> {
+  VlcPlayerController? _videoPlayerController;
+  late ChewieController _chewieController;
+  // final GlobalKey playerKey = GlobalKey();
+  // late VlcPlayer vlc;
+
+  @override
+  void initState() {
+    super.initState();
+    initializePlayer();
+    _createChewieController();
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController!.dispose();
+    _chewieController.dispose();
+    super.dispose();
+  }
+
+  Future<void> initializePlayer() async {
+    _videoPlayerController = VlcPlayerController.network(
+        "https://www.shutterstock.com/shutterstock/videos/1104530479/preview/stock-footage-countdown-video-from-minute-to-minute-timer-countdown-second-countdown-part-of.webm",
+        hwAcc: HwAcc.full,
+        autoInitialize: true,
+        options: VlcPlayerOptions(
+            advanced:
+                VlcAdvancedOptions([VlcAdvancedOptions.networkCaching(2000)])))
+      ..addOnInitListener(vlcInitListener)
+      ..addListener(vlcListener);
+
+    // ..initialize();
+    // vlc = VlcPlayer(
+    //   controller: _videoPlayerController!,
+    //   aspectRatio: 16 / 9,
+    //   placeholder: Text("testings"),
+    // );
+    // if (!_videoPlayerController.value.isInitialized) {
+    //   _videoPlayerController.initialize();
+    // }
+    // _videoPlayerController.initialize();
+  }
+
+  void vlcListener() async {
+    log("listener getting called " + _videoPlayerController!.viewId.toString());
+
+    if (!mounted) return;
+    // if (_videoPlayerController.isReadyToInitialize != null &&
+    //     _videoPlayerController.isReadyToInitialize!) {
+    //   await _videoPlayerController.initialize();
+    //   await _videoPlayerController.play();
+    // }
+    if (_videoPlayerController!.value.isEnded) {
+      _videoPlayerController!.stop();
+      _videoPlayerController!.play();
+    }
+  }
+
+  void vlcInitListener() async {
+    _videoPlayerController!.startRendererScanning();
+  }
+
+  void _createChewieController() {
+    _chewieController = ChewieController(
+      videoPlayerController: _videoPlayerController!,
+      looping: true,
+      hideControlsTimer: const Duration(seconds: 5),
+      placeholder: Container(
+        color: Colors.black,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: widget.title,
+      home: SafeArea(
+        child: Scaffold(
+          body: Column(
+            children: <Widget>[
+              Expanded(
+                child: Center(
+                  child: Column(
+                    children: [
+                      // if (_videoPlayerController.value.isInitialized)
+                      VlcPlayer(
+                        // key: playerKey,
+                        aspectRatio: 16 / 9,
+                        controller: _videoPlayerController!,
+                      ),
+                      // vlc,
+                      IconButton(
+                          onPressed: () async {
+                            log("inside double tap");
+                            _videoPlayerController!.pause();
+                            int time = await _videoPlayerController!.getTime();
+                            // _videoPlayerController!.autoInitialize = false;
+                            await Navigator.of(context).push(MaterialPageRoute(
+                                builder: ((context) => ChewieDemoFullScreen(
+                                      child: _videoPlayerController!,
+                                      // child: vlc,
+                                      time: time,
+                                    ))));
+                            // setState(() async {
+                            // vlc = VlcPlayer(
+                            //   controller: _videoPlayerController!,
+                            //   aspectRatio: 16 / 9,
+                            //   placeholder: Text("testings"),
+                            // );
+                            if (_videoPlayerController!.viewId >= 1) {
+                              int time =
+                                  await _videoPlayerController!.getTime();
+                              await _videoPlayerController!.platformDispose();
+                              _videoPlayerController!.viewId = 0;
+                              _videoPlayerController!.play();
+                              _videoPlayerController!.setTime(time);
+                            }
+                            // _videoPlayerController!.initialize();
+                            log("set state called");
+                            // });
+                          },
+                          icon: Icon(Icons.bubble_chart))
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+*/
