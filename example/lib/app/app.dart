@@ -3,7 +3,7 @@ import 'package:chewie_example/app/full_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 // ignore: depend_on_referenced_packages
-import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 class ChewieDemo extends StatefulWidget {

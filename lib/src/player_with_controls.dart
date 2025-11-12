@@ -3,7 +3,7 @@ import 'package:chewie_vlc/src/helpers/adaptive_controls.dart';
 import 'package:chewie_vlc/src/notifiers/index.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
 
 class PlayerWithControls extends StatelessWidget {
   const PlayerWithControls({Key? key, required this.aspectRatio})

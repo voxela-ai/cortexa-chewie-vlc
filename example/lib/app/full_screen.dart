@@ -1,7 +1,7 @@
 import 'package:chewie_vlc/chewie_vlc.dart';
 import 'package:flutter/material.dart';
 // ignore: depend_on_referenced_packages
-import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
 
 class ChewieDemoFullScreen extends StatefulWidget {
   const ChewieDemoFullScreen(

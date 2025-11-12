@@ -9,7 +9,7 @@ import 'package:chewie_vlc/src/player_with_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
 
 typedef ChewieRoutePageBuilder = Widget Function(
   BuildContext context,

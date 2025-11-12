@@ -2,7 +2,7 @@ import 'package:chewie_vlc/src/chewie_progress_colors.dart';
 import 'package:chewie_vlc/src/progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
 
 class CupertinoVideoProgressBar extends StatelessWidget {
   CupertinoVideoProgressBar(
